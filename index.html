@@ -195,9 +195,22 @@ const off=(new Date(yr,m,1).getDay()+6)%7,dim=new Date(yr,m+1,0).getDate();let c
 for(let i=0;i<off;i++)cells+='<div class="d e"></div>';
 for(let d=1;d<=dim;d++){const k=yr+'-'+pad(m+1)+'-'+pad(d),on=S.habit[k];if(on)c++;cells+='<div class="d '+(on?'on ':'')+(k==today?'t':'')+'" onclick="tg(this,\''+k+'\')">'+d+'</div>'}
 h+='<div class="mn" id="mn'+m+'" style="--i:'+Math.min(m,8)+'"><div class="row"><b>'+M[m]+'</b><span class="mu" id="mc'+m+'">'+c+'</span></div><div class="cal">'+cells+'</div></div>'}
-h+='</div><details class="card" ontoggle="if(this.open)$(\'#bk\').value=JSON.stringify(S)"><summary>Backup dos dados</summary><p class="mu">Os dados ficam salvos neste aparelho. Copie o texto abaixo para guardar uma cópia, ou cole um backup e restaure.</p><textarea id="bk" rows="5"></textarea><button class="btn" onclick="restore()">Restaurar backup</button></details>';
+h+='</div><details class="card"><summary>Backup dos dados</summary><p class="mu">Exporte um arquivo com todo o seu histórico e guarde no aparelho, no Drive ou onde preferir. Para voltar os dados, use Importar e escolha o arquivo.'+(S.lastBackup?' Último backup: '+S.lastBackup.slice(8,10)+'/'+S.lastBackup.slice(5,7)+'/'+S.lastBackup.slice(0,4)+'.':'')+'</p><button class="btn" onclick="exportB()">Exportar backup</button>'+(navigator.canShare&&navigator.share?'<button class="btn s" style="width:100%;margin:0 0 8px" onclick="shareB()">Compartilhar backup…</button>':'')+'<button class="btn s" style="width:100%;margin:0" onclick="$(\'#bf\').click()">Importar backup</button><input id="bf" type="file" accept=".json,application/json" hidden onchange="importB(this)"></details>';
 return h}
-function restore(){try{const o=JSON.parse($('#bk').value);if(!o.sessions||!o.weights||!o.habit)throw 0;S=Object.assign({names:{}},o);save();toast('Backup restaurado');R()}catch(e){toast('Texto de backup inválido')}}
+const bkFile=()=>{S.lastBackup=today;save();return new File([JSON.stringify(S,null,1)],'diario-treino-backup-'+today+'.json',{type:'application/json'})};
+function exportB(){
+const f=bkFile(),a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();a.remove();
+setTimeout(()=>URL.revokeObjectURL(a.href),5000);toast('Backup exportado');R()}
+async function shareB(){
+const f=bkFile();
+try{if(navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'Backup do Diário de Treino'});R();return}}catch(e){if(e&&e.name==='AbortError')return}
+toast('Compartilhar não é possível aqui. Use Exportar.')}
+function importB(inp){
+const f=inp.files[0];if(!f)return;const r=new FileReader();
+r.onload=()=>{try{const o=JSON.parse(r.result);if(!o.sessions||!o.weights||!o.habit)throw 0;
+if(!confirm('Substituir todos os dados atuais pelo backup "'+f.name+'"?')){inp.value='';return}
+S=Object.assign({names:{}},o);save();toast('Backup restaurado');R()}catch(e){toast('Arquivo de backup inválido')}inp.value=''};
+r.readAsText(f)}
 function setNav(){
 const bs=[...document.querySelectorAll('#nv button')];bs.forEach(b=>b.classList.toggle('on',b.dataset.t==tab));
 const b=bs.find(x=>x.dataset.t==tab),i=$('#ind');if(!b)return;
